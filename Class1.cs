@@ -62,26 +62,52 @@ namespace SampChatLib
         // ===== ATTACH =====
         public bool Attach()
         {
-            var p = Process.GetProcesses()
-                .FirstOrDefault(x => x.MainWindowTitle.Contains("AMAZING ONLINE"));
+            foreach (var p in Process.GetProcessesByName("amazing"))
+            {
+                try
+                {
+                    if (p.HasExited)
+                        continue;
 
-            if (p == null)
-                return false;
+                    if (p.MainWindowHandle == IntPtr.Zero)
+                        continue;
 
-            hProcess = OpenProcess(PROCESS_ACCESS, false, p.Id);
-            if (hProcess == IntPtr.Zero)
-                return false;
+                    IntPtr module = GetModule(p, "azmp.dll");
 
-            sampBase = GetModule(p, "azmp.dll");
+                    if (module == IntPtr.Zero)
+                        continue;
 
-            return sampBase != IntPtr.Zero;
+                    IntPtr handle = OpenProcess(PROCESS_ACCESS, false, p.Id);
+
+                    if (handle == IntPtr.Zero)
+                        continue;
+
+                    hProcess = handle;
+                    sampBase = module;
+
+                    return true;
+                }
+                catch
+                {
+                }
+            }
+
+            return false;
         }
 
         private IntPtr GetModule(Process p, string name)
         {
-            foreach (ProcessModule m in p.Modules)
-                if (m.ModuleName.Equals(name, StringComparison.OrdinalIgnoreCase))
-                    return m.BaseAddress;
+            try
+            {
+                foreach (ProcessModule m in p.Modules)
+                {
+                    if (m.ModuleName.Equals(name, StringComparison.OrdinalIgnoreCase))
+                        return m.BaseAddress;
+                }
+            }
+            catch
+            {
+            }
 
             return IntPtr.Zero;
         }
